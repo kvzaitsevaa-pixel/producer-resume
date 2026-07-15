@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ru" data-lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kseniia Zaitseva · Interpreter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Noto+Serif+SC:wght@500;600&family=Noto+Sans+SC:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#E9EDE3;
+    --paper-2:#F4F6F0;
+    --ink:#1B2A28;
+    --ink-soft:#4B5C58;
+    --seal:#8C2F26;
+    --brass:#A9863E;
+    --teal:#1F5C56;
+    --line: rgba(27,42,40,0.18);
+    --line-strong: rgba(27,42,40,0.32);
+    --font-display: 'Playfair Display', 'Noto Serif SC', serif;
+    --font-body: 'Inter', 'Noto Sans SC', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  html[data-lang="zh"]{
+    --font-display: 'Noto Serif SC', serif;
+    --font-body: 'Noto Sans SC', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(27,42,40,0.06) 1px, transparent 0);
+    background-size: 22px 22px;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:56px 24px 80px;}
+  a{color:var(--teal);}
+
+  /* ---------- language switch ---------- */
+  .langbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:28px;}
+  .langbtn{
+    font-family:var(--font-mono);
+    font-size:12px;letter-spacing:.04em;
+    background:var(--paper-2);
+    border:1px solid var(--line-strong);
+    color:var(--ink-soft);
+    padding:6px 12px;border-radius:3px;
+    cursor:pointer;
+    transform:rotate(-2deg);
+  }
+  .langbtn:nth-child(2){transform:rotate(1.5deg);}
+  .langbtn:nth-child(3){transform:rotate(-1deg);}
+  .langbtn.active{
+    color:var(--seal);
+    border-color:var(--seal);
+    background:#fff;
+  }
+
+  /* ---------- badge / hero ---------- */
+  .badge{
+    position:relative;
+    background:var(--paper-2);
+    border:1px solid var(--line-strong);
+    border-radius:6px;
+    padding:40px 32px 28px;
+    margin-bottom:8px;
+  }
+  .badge::before{
+    content:"";
+    position:absolute;
+    top:-9px;left:50%;transform:translateX(-50%);
+    width:18px;height:18px;
+    background:var(--paper);
+    border:1px solid var(--line-strong);
+    border-radius:50%;
+  }
+  .badge-inner{
+    border:1px dashed var(--line-strong);
+    border-radius:4px;
+    padding:28px;
+    display:flex;
+    gap:24px;
+    align-items:center;
+  }
+  .badge-photo{
+    width:104px;height:104px;border-radius:6px;
+    object-fit:cover;flex-shrink:0;
+    border:1px solid var(--line-strong);
+    filter:sepia(8%) saturate(92%);
+  }
+  .badge-text{flex:1;min-width:0;}
+  .name{
+    font-family:var(--font-display);
+    font-weight:600;
+    font-size:32px;line-height:1.1;
+    margin:14px 0 2px;color:var(--ink);
+  }
+  .name-secondary{
+    font-family:var(--font-display);
+    font-size:16px;color:var(--ink-soft);
+    margin:0 0 10px;
+  }
+  .role{font-size:15px;font-weight:500;margin:0 0 6px;color:var(--ink);}
+  .tagline{font-size:13.5px;color:var(--ink-soft);margin:0;line-height:1.5;}
+  .badge-code{
+    font-family:var(--font-mono);
+    font-size:10.5px;letter-spacing:.06em;
+    color:var(--ink-soft);
+    border-top:1px solid var(--line);
+    margin-top:20px;padding-top:12px;
+    display:flex;justify-content:space-between;
+  }
+
+  /* ---------- contact row ---------- */
+  .contacts{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0 44px;}
+  .chip{
+    display:flex;align-items:center;gap:7px;
+    font-size:13px;font-weight:500;color:var(--ink);
+    background:var(--paper-2);
+    border:1px solid var(--line-strong);
+    border-radius:999px;
+    padding:8px 14px 8px 10px;
+    text-decoration:none;
+    cursor:pointer;
+    position:relative;
+  }
+  .chip:hover{border-color:var(--seal);color:var(--seal);}
+  .chip svg{width:15px;height:15px;flex-shrink:0;}
+  .chip .toast{
+    position:absolute;bottom:calc(100% + 6px);left:50%;
+    transform:translateX(-50%);
+    background:var(--ink);color:var(--paper-2);
+    font-size:11px;padding:4px 9px;border-radius:4px;
+    white-space:nowrap;opacity:0;pointer-events:none;
+    transition:opacity .15s;
+    font-family:var(--font-mono);
+  }
+  .chip .toast.show{opacity:1;}
+
+  /* ---------- sections ---------- */
+  section{margin-bottom:44px;}
+  .sec-title{
+    font-family:var(--font-mono);
+    font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+    color:var(--brass);
+    margin:0 0 16px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .sec-title::after{content:"";flex:1;height:1px;background:var(--line-strong);}
+  .about-text{font-size:15px;line-height:1.75;color:var(--ink);max-width:64ch;}
+
+  .pairs{margin:0 0 18px;padding:0;list-style:none;}
+  .pairs li{
+    font-size:14px;padding:9px 0;
+    border-bottom:1px solid var(--line);
+    display:flex;gap:10px;
+  }
+  .pairs li:last-child{border-bottom:none;}
+  .pairs li::before{content:"›";color:var(--seal);font-weight:600;}
+
+  .tags{display:flex;flex-wrap:wrap;gap:8px;}
+  .tag{
+    font-size:12.5px;padding:6px 12px;border-radius:999px;
+    background:var(--paper-2);border:1px solid var(--line-strong);
+    color:var(--ink-soft);
+  }
+
+  /* ledger rows for experience/education */
+  .ledger-row{
+    display:grid;grid-template-columns:118px 1fr;gap:18px;
+    padding:16px 0;border-bottom:1px solid var(--line);
+  }
+  .ledger-row:last-child{border-bottom:none;}
+  .ledger-date{
+    font-family:var(--font-mono);font-size:11.5px;color:var(--ink-soft);
+    padding-top:2px;
+  }
+  .ledger-org{font-size:13px;color:var(--teal);font-weight:500;margin:0 0 2px;}
+  .ledger-role{font-size:14.5px;font-weight:600;margin:0 0 6px;color:var(--ink);}
+  .ledger-bullet{font-size:13.5px;color:var(--ink-soft);line-height:1.6;margin:0;}
+
+  /* projects */
+  .projects{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .project{
+    background:var(--paper-2);border:1px solid var(--line-strong);
+    border-radius:6px;padding:16px 18px;
+  }
+  .project-title{font-size:14.5px;font-weight:600;margin:0 0 3px;color:var(--ink);}
+  .project-org{font-family:var(--font-mono);font-size:10.5px;color:var(--seal);margin:0 0 6px;letter-spacing:.03em;}
+  .project-lang{font-family:var(--font-mono);font-size:10.5px;color:var(--brass);margin:0 0 8px;letter-spacing:.03em;}
+  .project-desc{font-size:13px;color:var(--ink-soft);line-height:1.55;margin:0;}
+
+  footer{
+    border-top:1px solid var(--line-strong);
+    padding-top:28px;
+  }
+  .footer-title{font-family:var(--font-display);font-size:22px;font-weight:600;margin:0 0 6px;}
+  .footer-text{font-size:14px;color:var(--ink-soft);margin:0 0 20px;}
+
+  @media (max-width:560px){
+    .wrap{padding:32px 16px 60px;}
+    .badge-inner{flex-direction:column;text-align:center;}
+    .badge-code{flex-direction:column;gap:4px;}
+    .projects{grid-template-columns:1fr;}
+    .ledger-row{grid-template-columns:1fr;gap:4px;}
+  }
+
+  
+  @media print {
+    @page { size: A4; margin: 8mm 12mm; }
+    body{background:#fff; background-image:none;}
+    .wrap{max-width:100%; padding:0;}
+    .langbar{display:none;}
+    .badge{padding:10px 14px 8px; margin-bottom:4px;}
+    .badge-inner{padding:10px 12px; gap:12px;}
+    .badge-photo{width:60px; height:60px;}
+    .name{font-size:21px; margin:4px 0 1px;}
+    .name-secondary{font-size:12px; margin:0 0 3px;}
+    .role{font-size:12px; margin:0 0 2px;}
+    .tagline{font-size:10.5px; line-height:1.3;}
+    .badge-code{font-size:8px; margin-top:6px; padding-top:5px;}
+    .contacts{margin:8px 0 10px; gap:5px;}
+    .chip{font-size:10px; padding:3px 9px 3px 7px;}
+    .chip svg{width:11px; height:11px;}
+    section{margin-bottom:9px !important;}
+    .sec-title{font-size:10px !important; margin:0 0 5px !important; letter-spacing:.08em !important;}
+    .about-text{font-size:10px !important; line-height:1.35 !important;}
+    .pairs{margin:0 0 8px !important;}
+    .pairs li{font-size:10px !important; padding:3px 0 !important;}
+    .tags{gap:4px !important;}
+    .tag{font-size:8.5px !important; padding:3px 8px !important;}
+    .ledger-row{grid-template-columns:82px 1fr !important; gap:9px !important; padding:7px 0 !important;}
+    .ledger-date{font-size:9px !important;}
+    .ledger-org{font-size:10.5px !important; margin:0 !important;}
+    .ledger-role{font-size:11px !important; margin:0 0 2px !important;}
+    .ledger-bullet{font-size:9.5px !important; line-height:1.35 !important;}
+    .projects{gap:7px !important;}
+    .project{padding:9px !important;}
+    .project-title{font-size:11px !important; margin:0 0 1px !important;}
+    .project-org{font-size:8.5px !important; margin:0 0 3px !important;}
+    .project-desc{font-size:9.5px !important; line-height:1.35 !important;}
+    footer{padding-top:9px !important;}
+    .footer-title{font-size:15px !important; margin:0 0 3px !important;}
+    .footer-text{font-size:10px !important; margin:0 0 8px !important;}
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="langbar">
+    <button class="langbtn" data-lang-btn="ru">RU</button>
+    <button class="langbtn" data-lang-btn="en">EN</button>
+    <button class="langbtn" data-lang-btn="zh">中文</button>
+  </div>
+
+  <div class="badge">
+    <div class="badge-inner">
+      <img class="badge-photo" src="data:image/jpeg;base64,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" alt="Kseniia Zaitseva">
+      <div class="badge-text">
+        <h1 class="name" data-i18n="name"></h1>
+        <p class="name-secondary" data-i18n="nameSecondary"></p>
+        <p class="role" data-i18n="role"></p>
+        <p class="tagline" data-i18n="tagline"></p>
+      </div>
+    </div>
+    <div class="badge-code">
+      <span data-i18n="badgeCode"></span>
+      <span>MOSCOW ⇄ BEIJING</span>
+    </div>
+  </div>
+
+  <div class="contacts">
+    <a class="chip" href="tel:+79207488585">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span>+7 920 748-85-85</span>
+    </a>
+    <a class="chip" href="tel:+8613121559877">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span>+86 131 2155 9877</span>
+    </a>
+    <a class="chip" href="mailto:k.zaitseva@qq.com">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg>
+      <span data-i18n="cEmail"></span>
+    </a>
+    <a class="chip" href="https://t.me/zay_eve" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 4L3 11l6 2.5M21 4l-4 17-8-6.5M21 4L9 13.5"/></svg>
+      <span data-i18n="cTelegram"></span>
+    </a>
+    <button class="chip" id="wechatChip" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="9" cy="10" r="6"/><path d="M15 21c3.6 0 6-2.2 6-5.2 0-2.7-2.1-4.8-5-4.8"/></svg>
+      <span data-i18n="cWechat"></span>
+      <span class="toast" id="wechatToast" data-i18n="copiedToast"></span>
+    </button>
+    <a class="chip" href="https://linkedin.com/in/kvzaitseva" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 10v7M7 7v.01M11 17v-4.5c0-1.4 1-2.5 2.4-2.5s2.6 1.1 2.6 2.5V17"/></svg>
+      <span data-i18n="cLinkedin"></span>
+    </a>
+  </div>
+
+  <section>
+    <p class="sec-title" data-i18n="aboutTitle"></p>
+    <p class="about-text" data-i18n="aboutText"></p>
+  </section>
+
+  <section>
+    <p class="sec-title" data-i18n="specTitle"></p>
+    <ul class="pairs" id="pairsList"></ul>
+    <div class="tags" id="tagsList"></div>
+  </section>
+
+  <section>
+    <p class="sec-title" data-i18n="expTitle"></p>
+    <div id="expList"></div>
+  </section>
+
+  <section>
+    <p class="sec-title" data-i18n="projTitle"></p>
+    <div class="projects" id="projList"></div>
+  </section>
+
+  <section>
+    <p class="sec-title" data-i18n="personalTitle"></p>
+    <div class="projects" id="personalList"></div>
+  </section>
+
+  <section>
+    <p class="sec-title" data-i18n="eduTitle"></p>
+    <div id="eduList"></div>
+  </section>
+
+  <section>
+    <p class="sec-title" data-i18n="certTitle"></p>
+    <div class="tags" id="certList"></div>
+  </section>
+
+  <footer>
+    <p class="footer-title" data-i18n="footerTitle"></p>
+    <p class="footer-text" data-i18n="footerText"></p>
+    <div class="contacts" style="margin-bottom:0;">
+      <a class="chip" href="tel:+79207488585">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span>+7 920 748-85-85</span>
+    </a>
+    <a class="chip" href="tel:+8613121559877">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span>+86 131 2155 9877</span>
+    </a>
+    <a class="chip" href="mailto:k.zaitseva@qq.com">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 6h18v12H3z"/><path d="M3 7l9 6 9-6"/></svg>
+        <span data-i18n="cEmail"></span>
+      </a>
+      <a class="chip" href="https://t.me/zay_eve" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 4L3 11l6 2.5M21 4l-4 17-8-6.5M21 4L9 13.5"/></svg>
+        <span data-i18n="cTelegram"></span>
+      </a>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+const DATA = {
+  ru: {
+    name:"Ксения Зайцева",
+    nameSecondary:"晓筠",
+    role:"Продюсер · Китай и международная повестка",
+    tagline:"Продюсирование контента и мероприятий, ресёрч и работа с международными источниками на трёх языках (RU / EN / ZH)",
+    badgeCode:"PASS № RU·EN·ZH — ДЕЙСТВИТЕЛЕН ПОВСЕМЕСТНО",
+    cEmail:"Написать письмо", cTelegram:"Telegram", cWechat:"WeChat", cLinkedin:"LinkedIn",
+    copiedToast:"ID скопирован: zay_eve",
+    aboutTitle:"О кандидате",
+    aboutText:"Продюсер и редактор с фокусом на Китае и международных отношениях. Три рабочих языка (русский — родной, китайский — C1 / HSK 5, английский — свободно), более трёх лет жизни и учёбы в Пекине на китайском, магистр регионоведения. Опыт: продюсирование международных конференций и мероприятий (200+ участников, 20+ стран), ресёрч и аналитика по Китаю и России, координация делегаций и работа с международной повесткой (Секретариат ШОС), создание контента и запуск проектов с нуля. Свободно работаю с китайскими и англоязычными источниками, экспертами и спикерами.",
+    specTitle:"Сильные стороны",
+    pairs:["Продюсирование мероприятий и контента — от идеи до реализации","Ресёрч и фактчекинг по международной повестке, Китаю и Азии","Языки: русский (родной) · китайский (C1, HSK 5) · английский (свободно)"],
+    tags:["Международные отношения","Китай и Россия–Китай","Продюсирование мероприятий","Редактура и фактчекинг","Ресёрч и аналитика","Работа со спикерами и делегациями","Контент и SMM","Локализация RU/EN/ZH","Нефтегаз, металлы, ВЭД"],
+    expTitle:"Опыт",
+    exp:[
+      {date:"апрель 2026 — наст. время", org:"ООО «Астра Трейд Консалтинг Групп»", role:"Заместитель директора по работе с Китаем", bullet:"В партнёрстве с логистической компанией помогаю китайским компаниям находить российских партнёров по конкретным товарным позициям; перевод переговоров и документации; сформирован пул из 150 потенциальных китайских партнёров по алюминию, сделки на стадии переговоров."},
+{date:"июль 2025 — апрель 2026", org:"Самозанятый консультант", role:"Трансграничные проекты: ресёрч, координация, переводы", bullet:"За 10 месяцев подготовила 50+ материалов и документов по проектам Китай–Россия (в т.ч. для партнёров РУСАЛ — алюминий, и ENLEADER — нефтегаз); выстроила сеть из 25+ отраслевых контактов и экспертов; скоординировала и сопровождала 15+ партнёрских сделок."},
+      {date:"март – июль 2025", org:"Секретариат ШОС, Пекин", role:"Координатор международного сотрудничества, переводчик", bullet:"Работа с международной повесткой ШОС: подготовка и перевод деклараций, сопровождение 5+ заседаний высокого уровня; официальный координатор и переводчик пакистанской делегации."},
+      {date:"июнь – ноябрь 2024", org:"BAIC Group, Пекин", role:"Аналитик международного рынка (стажировка)", bullet:"За 6 месяцев подготовила 10+ аналитических отчётов на китайском языке по российскому рынку и отраслевым трендам; поддержка коммуникации между 3 отделами компании."},
+      {date:"май – октябрь 2024", org:"Издательство Пекинского университета языка и культуры (BLCU Press)", role:"Развитие бизнеса и ресёрч (российский рынок)", bullet:"Подготовила аналитику российского рынка и отчёты на китайском языке; сопровождала переговоры и соглашения в ходе деловых визитов в Москву и Санкт-Петербург с участием 12 организаций-партнёров."},
+      {date:"апрель – ноябрь 2024", org:"Международный отдел BLCU", role:"Ассистент по международным проектам (стажировка)", bullet:"Поддержка международной конференции Elite World Partner (27 стран): координация и материалы; работа с 20+ партнёрами; перевод договоров и меморандумов."},
+      {date:"октябрь 2022 – сентябрь 2024", org:"DAL Language School, Россия", role:"Основатель · контент и маркетинг", bullet:"Запустила проект курсов китайского языка с нуля за 2 года; разработала контент-стратегию и SMM-продвижение; увеличила вовлечённость аудитории на 30%, набрала первую базу учеников (30+ человек)."},
+      {date:"октябрь 2022 – октябрь 2023", org:"Индивидуальный предприниматель, Россия", role:"Визовые услуги (Китай)", bullet:"200+ клиентов; автоматизация процессов; развитие партнёрской сети (3+ канала)."},
+      {date:"июль – сентябрь 2022", org:"TDM Electric", role:"ВЭД-ассистент / переводчик", bullet:"Переговоры с поставщиками и восстановление цепочек поставок; перевод контрактов и технической документации."},
+      {date:"апрель – май 2022", org:"Бизнес-инкубатор НИУ ВШЭ", role:"Аналитик (стажировка)", bullet:"Анализ азиатских инвесторов и партнёрских ресурсов; поддержка международных проектов акселератора."}
+    ],
+    projTitle:"Мероприятия и продакшн",
+    proj:[
+      {title:"Voices of Impact", org:"Международная конференция · основатель", desc:"Продюсирование международной конференции от идеи до реализации; участники из 20+ стран."},
+      {title:"SCOLAR Network", org:"Молодёжная платформа ШОС · зам. куратора", desc:"Организация 6 мероприятий, 200+ участников; международная повестка."},
+      {title:"Elite World Partner", org:"BLCU · конференция 27 стран", desc:"Координация и языковое сопровождение международной конференции."},
+      {title:"Секретариат ШОС", org:"Международная повестка", desc:"Декларации, сопровождение делегаций, работа с материалами высокого уровня."}
+    ],
+    personalTitle:"Контент и отраслевой ресёрч",
+    personal:[
+      {title:"DAL School", org:"Контент · маркетинг · SMM", desc:"Запуск с нуля, контент-стратегия, +30% вовлечённости."},
+      {title:"ENLEADER", org:"Нефтегаз · международные конференции", desc:"Материалы, презентации и контент для отраслевых мероприятий."},
+      {title:"Аналитика Китай / Россия", org:"BAIC · BLCU Press", desc:"Стратегические и рыночные отчёты на китайском языке."}
+    ],
+    eduTitle:"Образование",
+    edu:[
+      {date:"2022–2025", degree:"Магистр, Регионоведение (Ближний Восток)", org:"Пекинский университет языка и культуры", note:"Обучение на китайском · стипендия Правительства КНР"},
+      {date:"2018–2022", degree:"Бакалавр, Международные исследования", org:"Университет Кёнхи, Сеул", note:"Обучение на английском"},
+      {date:"2018–2022", degree:"Бакалавр, Зарубежное регионоведение (Восточная Азия)", org:"НИУ ВШЭ, Москва", note:"Обучение на английском"}
+    ],
+    certTitle:"Сертификаты и допобразование",
+    certs:["HSK 5 (C1), 2021","Курс переговоров — USIP, Вашингтон, 2023","Стажировка — Фуданьский университет, Шанхай","Стажировка — Пекинский университет языка и культуры (BLCU)","Стажировка — Второй Пекинский институт иностранных языков (BISU), 2021"],
+    footerTitle:"На связи",
+    footerText:"Открыта к роли продюсера — международная и китайская повестка. Удалённо или в офисе."
+  },
+  en: {
+    name:"Kseniia Zaitseva",
+    nameSecondary:"晓筠",
+    role:"Producer · China & international affairs",
+    tagline:"Producing content and events, research and work with international sources across three languages (RU / EN / ZH)",
+    badgeCode:"PASS NO. RU·EN·ZH — VALID EVERYWHERE",
+    cEmail:"Email me", cTelegram:"Telegram", cWechat:"WeChat", cLinkedin:"LinkedIn",
+    copiedToast:"ID copied: zay_eve",
+    aboutTitle:"About",
+    aboutText:"Producer and editor focused on China and international affairs. Works in three languages (Russian — native, Chinese — C1 / HSK 5, English — fluent), with 3+ years living and studying in Beijing in Chinese and an M.A. in Regional Studies. Experience producing international conferences and events (200+ participants, 20+ countries), research and analysis on China and Russia, coordinating delegations and working with the international agenda (SCO Secretariat), creating content and launching projects from scratch. Comfortable with Chinese- and English-language sources, experts, and speakers.",
+    specTitle:"Strengths",
+    pairs:["Producing events and content — from concept to delivery","Research & fact-checking on international affairs, China and Asia","Languages: Russian (native) · Chinese (C1, HSK 5) · English (fluent)"],
+    tags:["International relations","China & Russia–China","Event production","Editing & fact-checking","Research & analysis","Speakers & delegations","Content & social","Localization RU/EN/ZH","Oil & gas, metals, trade"],
+    expTitle:"Experience",
+    exp:[
+      {date:"Apr 2026 — Present", org:"Astra Trade Consulting Group LLC", role:"Deputy Director for China", bullet:"Partnering with a logistics company to help Chinese companies find Russian counterparts for specific product categories; interpreting negotiations and translating documentation; built a pipeline of 150 potential Chinese aluminum partners, with deals currently in negotiation."},
+{date:"Jul 2025 — Apr 2026", org:"Self-employed consultant", role:"Cross-border projects: research, coordination, translation", bullet:"Over 10 months, researched and produced 50+ materials and documents for China–Russia projects (incl. RUSAL — aluminum, and ENLEADER — oil & gas); built a network of 25+ industry contacts and experts; coordinated and supported 15+ partner deals."},
+      {date:"Mar – Jul 2025", org:"SCO Secretariat, Beijing", role:"International Cooperation Coordinator & Interpreter", bullet:"Worked on the SCO agenda: prepared and translated declarations, supported 5+ high-level meetings; official coordinator and interpreter for the Pakistani delegation."},
+      {date:"Jun – Nov 2024", org:"BAIC Group, Beijing", role:"International Market Analyst (Intern)", bullet:"Over 6 months, prepared 10+ analytical reports in Chinese on the Russian market and industry trends; supported communication across 3 internal departments."},
+      {date:"May – Oct 2024", org:"BLCU Press", role:"Business Development & Research (Russian market)", bullet:"Prepared Russian-market analysis and reports in Chinese; supported negotiations and agreements during business visits to Moscow and St. Petersburg involving 12 partner organizations."},
+      {date:"Apr – Nov 2024", org:"BLCU International Office", role:"International Projects Assistant (Internship)", bullet:"Supported the Elite World Partner international conference (27 countries): coordination and materials; worked with 20+ partners; translated contracts and MOUs."},
+      {date:"Oct 2022 – Sep 2024", org:"DAL Language School, Russia", role:"Founder · Content & Marketing", bullet:"Built a Chinese-language course business from scratch over 2 years; developed content strategy and social media promotion; grew audience engagement by 30% and onboarded an initial base of 30+ students."},
+      {date:"Oct 2022 – Oct 2023", org:"Self-employed, Russia", role:"Visa Services (China)", bullet:"200+ clients; process automation; expanded partner network (3+ channels)."},
+      {date:"Jul – Sep 2022", org:"TDM Electric", role:"Foreign Trade Assistant / Translator", bullet:"Supplier negotiations and supply-chain recovery; translated contracts and technical documentation."},
+      {date:"Apr – May 2022", org:"HSE Business Incubator", role:"Analyst (Internship)", bullet:"Analyzed Asian investors and partnership resources; supported the accelerator's international projects."}
+    ],
+    projTitle:"Events & production",
+    proj:[
+      {title:"Voices of Impact", org:"International conference · founder", desc:"Produced an international conference from concept to delivery; participants from 20+ countries."},
+      {title:"SCOLAR Network", org:"SCO youth platform · vice-curator", desc:"Organized 6 events, 200+ participants; international agenda."},
+      {title:"Elite World Partner", org:"BLCU · 27-country conference", desc:"Coordination and language support for an international conference."},
+      {title:"SCO Secretariat", org:"International agenda", desc:"Declarations, delegation support, high-level materials."}
+    ],
+    personalTitle:"Content & sector research",
+    personal:[
+      {title:"DAL School", org:"Content · marketing · social", desc:"Built from scratch, content strategy, +30% engagement."},
+      {title:"ENLEADER", org:"Oil & gas · international conferences", desc:"Materials, presentations and content for industry events."},
+      {title:"China / Russia analysis", org:"BAIC · BLCU Press", desc:"Strategic and market reports in Chinese."}
+    ],
+    eduTitle:"Education",
+    edu:[
+      {date:"2022–2025", degree:"M.A., Regional Studies (Middle East)", org:"Beijing Language and Culture University", note:"Taught in Chinese · full scholarship, Government of China"},
+      {date:"2018–2022", degree:"B.A., International Studies", org:"Kyung Hee University, Seoul", note:"Taught in English"},
+      {date:"2018–2022", degree:"B.A., Foreign Regional Studies (East Asia)", org:"HSE, Moscow", note:"Taught in English"}
+    ],
+    certTitle:"Certifications & training",
+    certs:["HSK 5 (C1), 2021","Negotiation course — USIP, Washington, 2023","Exchange — Fudan University, Shanghai","Exchange — Beijing Language and Culture University (BLCU)","Exchange — Beijing International Studies University (BISU), 2021"],
+    footerTitle:"Get in touch",
+    footerText:"Open to a producer role — international and China agenda. Remote or on-site."
+  },
+  zh: {
+    name:"晓筠",
+    nameSecondary:"Kseniia Zaitseva",
+    role:"制作人 · 中国与国际事务",
+    tagline:"内容与活动制作、调研，运用中俄英三语对接国际信源",
+    badgeCode:"通行证编号 RU·EN·ZH — 全球通用",
+    cEmail:"发送邮件", cTelegram:"Telegram", cWechat:"微信", cLinkedin:"领英",
+    copiedToast:"已复制：zay_eve",
+    aboutTitle:"关于我",
+    aboutText:"专注中国与国际事务的内容制作人与编辑。掌握三种工作语言（俄语母语、中文 C1/HSK5、英语流利），在北京以中文学习生活三年以上，区域研究硕士。具备国际会议与活动制作经验（200+ 参会者、20+ 国家）、中俄议题的调研与分析、代表团协调与国际议程工作（上合组织秘书处），以及内容创作与从零到一的项目启动经验。能熟练处理中英文信源，对接专家与嘉宾。",
+    specTitle:"核心优势",
+    pairs:["活动与内容制作——从策划到落地","国际事务、中国与亚洲议题的调研与核查","语言：俄语（母语）· 中文（C1，HSK5）· 英语（流利）"],
+    tags:["国际关系","中国与中俄关系","活动制作","编辑与事实核查","调研与分析","嘉宾与代表团对接","内容与新媒体","中俄英本地化","石油天然气、金属、外贸"],
+    expTitle:"工作经历",
+    exp:[
+      {date:"2026年4月—至今", org:"Astra Trade Consulting Group有限责任公司", role:"中国业务副总监", bullet:"与一家物流公司合作，帮助中国企业寻找特定产品品类的俄罗斯合作伙伴；负责谈判口译及文件翻译；已建立150家潜在中国铝业合作伙伴的资源库，交易目前正在洽谈中。"},
+      {date:"2025年7月—2026年4月", org:"自雇顾问", role:"跨境项目：调研、协调、翻译", bullet:"10个月内为中俄项目调研并产出50+份材料与文件（含RUSAL铝业、ENLEADER石油天然气）；拓展25+行业资源与专家网络；协调并支持15+合作机会。"},
+      {date:"2025年3月—7月", org:"上海合作组织秘书处，北京", role:"国际合作协调员／译员", bullet:"参与上合组织议程：起草与翻译宣言，支持5+场高级别会议；担任巴基斯坦代表团官方协调人及译员。"},
+      {date:"2024年6月—11月", org:"北汽集团，北京", role:"国际市场分析（实习）", bullet:"6个月内撰写10余份中文分析报告，涵盖俄罗斯市场及行业趋势；支持3个内部部门间的沟通协作。"},
+      {date:"2024年5月—10月", org:"北京语言大学出版社", role:"业务拓展与调研（俄罗斯市场）", bullet:"撰写俄罗斯市场分析中文报告；在莫斯科、圣彼得堡商务访问中支持与12家合作机构的谈判及协议签署。"},
+      {date:"2024年4月—11月", org:"北京语言大学国际处", role:"国际项目助理（实习）", bullet:"支持Elite World Partner国际会议（27国）：协调与材料；对接20+合作伙伴；翻译合同与备忘录。"},
+      {date:"2022年10月—2024年9月", org:"DAL语言学校，俄罗斯", role:"创始人 · 内容与市场", bullet:"两年内从零搭建中文课程项目；制定内容策略与新媒体推广方案；用户参与度提升30%，积累首批30余名学员。"},
+      {date:"2022年10月—2023年10月", org:"个体经营，俄罗斯", role:"签证服务（中国方向）", bullet:"服务200+客户；流程自动化；拓展3+合作渠道。"},
+      {date:"2022年7月—9月", org:"TDM Electric", role:"外贸助理／译员", bullet:"供应商谈判与供应链恢复；翻译合同及技术文件。"},
+      {date:"2022年4月—5月", org:"高等经济大学商业孵化器", role:"分析（实习）", bullet:"分析亚洲投资人及合作资源；支持加速器国际项目。"}
+    ],
+    projTitle:"活动与制作",
+    proj:[
+      {title:"Voices of Impact", org:"国际会议 · 发起人", desc:"从策划到落地制作国际会议；参与者来自20+国家。"},
+      {title:"SCOLAR Network", org:"上合青年平台 · 副主席", desc:"组织6场活动，200+参与者；国际议题。"},
+      {title:"Elite World Partner", org:"北语 · 27国会议", desc:"国际会议的协调与语言支持。"},
+      {title:"上合组织秘书处", org:"国际议程", desc:"宣言、代表团接待、高级别材料。"}
+    ],
+    personalTitle:"内容与行业调研",
+    personal:[
+      {title:"DAL School", org:"内容 · 市场 · 新媒体", desc:"从零搭建，内容策略，参与度+30%。"},
+      {title:"ENLEADER", org:"石油天然气 · 国际会议", desc:"为行业活动制作材料、演示与内容。"},
+      {title:"中国／俄罗斯分析", org:"北汽 · 北语出版社", desc:"中文战略与市场报告。"}
+    ],
+    eduTitle:"教育背景",
+    edu:[
+      {date:"2022–2025", degree:"硕士，国别与区域研究（中东方向）", org:"北京语言大学", note:"中文授课 · 中国政府奖学金"},
+      {date:"2018–2022", degree:"学士，国际研究", org:"庆熙大学，首尔", note:"英语授课"},
+      {date:"2018–2022", degree:"学士，外国区域研究（东亚方向）", org:"俄罗斯高等经济大学，莫斯科", note:"英语授课"}
+    ],
+    certTitle:"证书与培训",
+    certs:["HSK5（C1），2021年","谈判课程 — 美国和平研究所（USIP），华盛顿，2023年","交流项目 — 复旦大学，上海","交流项目 — 北京语言大学（BLCU）","交流项目 — 北京第二外国语学院（BISU），2021年"],
+    footerTitle:"联系我",
+    footerText:"期待担任制作人——国际与中国议题。远程或现场均可。"
+  }
+};
+
+function renderLang(lang){
+  const d = DATA[lang];
+  document.documentElement.setAttribute('data-lang', lang);
+  document.documentElement.setAttribute('lang', lang);
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key = el.getAttribute('data-i18n');
+    if (d[key] !== undefined) el.textContent = d[key];
+  });
+  document.querySelectorAll('.langbtn').forEach(b=>{
+    b.classList.toggle('active', b.getAttribute('data-lang-btn')===lang);
+  });
+
+  const pairsEl = document.getElementById('pairsList');
+  pairsEl.innerHTML = d.pairs.map(p=>`<li>${p}</li>`).join('');
+
+  const tagsEl = document.getElementById('tagsList');
+  tagsEl.innerHTML = d.tags.map(t=>`<span class="tag">${t}</span>`).join('');
+
+  const expEl = document.getElementById('expList');
+  expEl.innerHTML = d.exp.map(e=>`
+    <div class="ledger-row">
+      <div class="ledger-date">${e.date}</div>
+      <div>
+        <p class="ledger-org">${e.org}</p>
+        <p class="ledger-role">${e.role}</p>
+        <p class="ledger-bullet">${e.bullet}</p>
+      </div>
+    </div>`).join('');
+
+  const projEl = document.getElementById('projList');
+  projEl.innerHTML = d.proj.map(p=>`
+    <div class="project">
+      <p class="project-title">${p.title}</p>
+      <p class="project-org">${p.org}</p>
+      <p class="project-desc">${p.desc}</p>
+    </div>`).join('');
+
+  const personalEl = document.getElementById('personalList');
+  personalEl.innerHTML = d.personal.map(p=>`
+    <div class="project">
+      <p class="project-title">${p.title}</p>
+      <p class="project-org">${p.org}</p>
+      <p class="project-desc">${p.desc}</p>
+    </div>`).join('');
+
+  const eduEl = document.getElementById('eduList');
+  eduEl.innerHTML = d.edu.map(e=>`
+    <div class="ledger-row">
+      <div class="ledger-date">${e.date}</div>
+      <div>
+        <p class="ledger-org">${e.org}</p>
+        <p class="ledger-role">${e.degree}</p>
+        <p class="ledger-bullet">${e.note}</p>
+      </div>
+    </div>`).join('');
+
+  const certEl = document.getElementById('certList');
+  certEl.innerHTML = d.certs.map(c=>`<span class="tag">${c}</span>`).join('');
+}
+
+document.querySelectorAll('.langbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>renderLang(btn.getAttribute('data-lang-btn')));
+});
+
+document.getElementById('wechatChip').addEventListener('click', ()=>{
+  navigator.clipboard.writeText('zay_eve').catch(()=>{});
+  const t = document.getElementById('wechatToast');
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 1600);
+});
+
+renderLang('ru');
+</script>
+</body>
+</html>
